@@ -16,7 +16,7 @@ main_url="https://htbmachines.github.io/bundle.js"
 
 function ctrl_c() {
   echo -e "\n\n${redColour}[!] Saliendo...${endColour}\n\n"
-  exit 1
+  tput cnorm && exit 1
 }
 
 function helpPanel() {
@@ -31,6 +31,7 @@ function searchMachine() {
 }
 
 function updateFiles() {
+  tput civis
   if [ ! -f bundle.js ]; then
     echo -e "\n${yellowColour}[+]${endColour}${grayColour} Descargando archivos necesarios...${endColour}"
     curl -s $main_url > bundle.js
@@ -39,6 +40,7 @@ function updateFiles() {
   else
     echo -e "\n[!] El archivo ya existe"
   fi
+  tput cnorm
 }
 
 #Indicadores
