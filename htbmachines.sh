@@ -31,16 +31,32 @@ function searchMachine() {
 }
 
 function updateFiles() {
-  tput civis
   if [ ! -f bundle.js ]; then
+    tput civis
     echo -e "\n${yellowColour}[+]${endColour}${grayColour} Descargando archivos necesarios...${endColour}"
     curl -s $main_url > bundle.js
     js-beautify bundle.js | sponge bundle.js
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Todos los archivos han sido descargados${endColour}"
+    tput cnorm
   else
-    echo -e "\n[!] El archivo ya existe"
+    tput civis
+    echo -e "\n${yellowColour}[!]${endColour} ${grayColour}El archivo ya existe, comprobando si hay actualizaciónes...${endColour})"
+    curl -s $main_url > bundle_temp.js
+    js-beautify bundle_temp.js | sponge bundle_temp.js
+    md5_temp_value=$(md5sum bundle_temp.js | awk '{print $1}')
+    md5_original_value=$(md5sum bundle.js | awk '{print $1}')
+
+    if [ "$md5_temp_value" == "$md5_original_value" ]; then
+      echo -e "\n[+] No hay actualizaciónes"
+      rm bundle_temp.js
+    else
+      echo -e "\n[+] Hay actualizaciónes"
+      rm bundle.js
+      mv bundle_temp.js bundle.js
+    fi
+
+    tput cnorm
   fi
-  tput cnorm
 }
 
 #Indicadores
