@@ -116,12 +116,29 @@ function getOSMachines() {
   echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Representando las máquinas cuyo sistema operativo es${endColour} ${purpleColour}$os ${endColour}${grayColour}:${endColour}"
     echo -e "\n$os_results"
   else
-    echo -e "\n${redColour} El sistema operativo no existe\n ${endColour}"
+    echo -e "\n${redColour}[!] El sistema operativo no existe\n ${endColour}"
+  fi
+}
+
+function getOSDifficultyMachines() {
+  difficulty=$1
+  os=$2
+  check_results="$(grep "so: \"$os\"" -C4 bundle.js | grep "dificultad: \"$difficulty\"" -B 5 | grep "name:" | awk 'NF{print $NF}' | tr -d '",' | column)"
+
+  if [ "$check_results" ]; then
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Representando las máquinas que poseen un nivel de dificultad${endColour} ${purpleColour}$difficulty${endColour}${grayColour} y sistema operativo ${endColour}${blueColour}$os${endColour}${grayColour}:${endColour}\n"
+    echo -e "\n$check_results\n"
+  else
+    echo -e "\n${redColour}[!] Se ha indicado una dificultad o sistema operativo incorrecto\n ${endColour}"
   fi
 }
 
 #Indicadores
 declare -i parameter_counter=0
+
+#Chivatos(?
+declare -i chivato_difficulty=0
+declare -i chivato_os=0
 
 # Ctrl_c
 trap ctrl_c INT
@@ -132,8 +149,8 @@ while getopts "uy:m:i:hd:o:" arg; do
     u) let parameter_counter+=2;;
     i) ipAddress="$OPTARG"; let parameter_counter+=3;;
     y) machineName="$OPTARG"; let parameter_counter+=4;;
-    d) difficulty="$OPTARG"; let parameter_counter+=5;;
-    o) os=$OPTARG; let parameter_counter+=6;;
+    d) difficulty="$OPTARG"; chivato_difficulty=1; let parameter_counter+=5;;
+    o) os=$OPTARG; chivato_os=1; let parameter_counter+=6;;
     h) ;;
   esac
 done
@@ -150,6 +167,8 @@ elif [ $parameter_counter -eq 5 ]; then
   getMachinesDifficulty $difficulty
 elif [ $parameter_counter -eq 6 ]; then
   getOSMachines $os
+elif [ $chivato_difficulty -eq 1 ] && [ $chivato_os -eq 1 ]; then
+  getOSDifficultyMachines $difficulty $os
 else
   helpPanel
-fi
+fi 
