@@ -34,7 +34,7 @@ function searchMachine() {
   machineName_checker="$(cat bundle.js | awk "/name: \"$machineName\"/,/resuelta:/" | grep -vE "id|resuelta|sku" | tr -d '",' | sed 's/^ *//')"
   if [ "$machineName_checker" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Listando las propiedades de la máquina${endColour}${blueColour} $machineName${endColour}${grayColour}:${endColour}\n"
-    cat bundle.js | awk "/name: \"$machineName\"/,/resuelta:/" | grep -vE "id|resuelta|sku" | tr -d '",' | sed 's/^ *//'
+    cat bundle.js | awk "/name: \"$machineName\"/,/resuelta:/" | grep -vE "id:|resuelta:|sku:" | tr -d '",' | sed 's/^ *//'
   else
     echo -e "\n${redColour}[!] La máquina proporcionada no existe.${endColour}"
   fi
