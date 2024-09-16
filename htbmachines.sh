@@ -84,11 +84,14 @@ function searchIp() {
 }
 
 function getYoutubeLink() {
-#  machineName=$1
-#  echo -e "\n${purpleColour}m)${endColour} ${grayColour}Buscar por nombre de máquina ${endColour}"
-
-#  youtubeLink=$(cat bundle.js | awk "/name: \"Forge\"/,/resuelta/" | grep "youtube:" | awk 'NF{print $NF}' | tr -d '",')
-
+  machineName=$1
+  youtubeLink=$(cat bundle.js | awk "/name: \"$machineName\"/,/resuelta/" | grep "youtube:" | awk 'NF{print $NF}' | tr -d '",')
+  
+  if [ $youtubeLink ]; then
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}El tutorial para la máquina${endColour}${purpleColour} $machineName ${endColour}${grayColour}está en el siguiente enlace:${endColour} ${blueColour}$youtubeLink${endColour}"
+  else
+    echo -e "\n${redColour}[!] La máquina proporcionada no existe ${endColour}"
+  fi
 }
 
 #Indicadores
