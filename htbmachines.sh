@@ -25,6 +25,7 @@ function helpPanel() {
   echo -e "\t${purpleColour}h)${endColour} ${grayColour}Mostrar panel de ayuda ${endColour}"
   echo -e "\t${purpleColour}y)${endColour} ${grayColour}Obtener link de la resolución de la máquina en youtube ${endColour}"
   echo -e "\t${purpleColour}m)${endColour} ${grayColour}Buscar por nombre de máquina ${endColour}"
+  echo -e "\t${purpleColour}o)${endColour} ${grayColour}Buscar por el sistema operativo de la máquina ${endColour}"
   echo -e "\t${purpleColour}i)${endColour} ${grayColour}Buscar por dirección IP${endColour}"
   echo -e "\t${purpleColour}d)${endColour} ${grayColour}Buscar por la dificultad de la máquina${endColour}"
 }
@@ -107,19 +108,32 @@ function getMachinesDifficulty() {
   fi
 }
 
+function getOSMachines() {
+  os=$1
+  os_results="$(grep "so: \"$os\"" -B5 bundle.js | grep "name:" | awk 'NF{print $NF}' | tr -d '",' | column)"
+
+  if [ "$os_results" ]; then
+  echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Representando las máquinas cuyo sistema operativo es${endColour} ${purpleColour}$os ${endColour}${grayColour}:${endColour}"
+    echo -e "\n$os_results"
+  else
+    echo -e "\n${redColour} El sistema operativo no existe\n ${endColour}"
+  fi
+}
+
 #Indicadores
 declare -i parameter_counter=0
 
 # Ctrl_c
 trap ctrl_c INT
 
-while getopts "uy:m:i:hd:" arg; do
+while getopts "uy:m:i:hd:o:" arg; do
   case $arg in
     m) machineName="$OPTARG"; let parameter_counter+=1;;
     u) let parameter_counter+=2;;
     i) ipAddress="$OPTARG"; let parameter_counter+=3;;
     y) machineName="$OPTARG"; let parameter_counter+=4;;
     d) difficulty="$OPTARG"; let parameter_counter+=5;;
+    o) os=$OPTARG; let parameter_counter+=6;;
     h) ;;
   esac
 done
@@ -134,6 +148,8 @@ elif [ $parameter_counter -eq 4 ]; then
   getYoutubeLink $machineName
 elif [ $parameter_counter -eq 5 ]; then
   getMachinesDifficulty $difficulty
+elif [ $parameter_counter -eq 6 ]; then
+  getOSMachines $os
 else
   helpPanel
 fi
