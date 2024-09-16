@@ -27,6 +27,7 @@ function helpPanel() {
   echo -e "\t${purpleColour}m)${endColour} ${grayColour}Buscar por nombre de máquina ${endColour}"
   echo -e "\t${purpleColour}o)${endColour} ${grayColour}Buscar por el sistema operativo de la máquina ${endColour}"
   echo -e "\t${purpleColour}i)${endColour} ${grayColour}Buscar por dirección IP${endColour}"
+  echo -e "\t${purpleColour}s)${endColour} ${grayColour}Buscar por skill${endColour}"
   echo -e "\t${purpleColour}d)${endColour} ${grayColour}Buscar por la dificultad de la máquina${endColour}"
 }
 
@@ -133,6 +134,19 @@ function getOSDifficultyMachines() {
   fi
 }
 
+function getSkill() {
+  skill="$1"
+  skill_check="$(grep "skills: " bundle.js -B 6 | grep "$skill" -i -B 6 | grep "name:" | awk 'NF{print $NF}' | tr -d '",' | column)"
+
+  if [ "$skill_check" ]; then
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Mostrando las maquinas que traten la skill${endColour} ${purpleColour}$skill${endColour}${grayColour}:${endColour}\n"
+    echo -e "$skill_check\n"
+  else  
+   echo -e "\n${redColour}[!] No se han encontrado máquinas que requieran la skill indicada\n ${endColour}"
+  fi
+}
+
+
 #Indicadores
 declare -i parameter_counter=0
 
@@ -143,7 +157,7 @@ declare -i chivato_os=0
 # Ctrl_c
 trap ctrl_c INT
 
-while getopts "uy:m:i:hd:o:" arg; do
+while getopts "uy:m:i:hd:o:s:" arg; do
   case $arg in
     m) machineName="$OPTARG"; let parameter_counter+=1;;
     u) let parameter_counter+=2;;
@@ -151,6 +165,7 @@ while getopts "uy:m:i:hd:o:" arg; do
     y) machineName="$OPTARG"; let parameter_counter+=4;;
     d) difficulty="$OPTARG"; chivato_difficulty=1; let parameter_counter+=5;;
     o) os=$OPTARG; chivato_os=1; let parameter_counter+=6;;
+    s) skill=$OPTARG; let parameter_counter+=7;;
     h) ;;
   esac
 done
@@ -169,6 +184,8 @@ elif [ $parameter_counter -eq 6 ]; then
   getOSMachines $os
 elif [ $chivato_difficulty -eq 1 ] && [ $chivato_os -eq 1 ]; then
   getOSDifficultyMachines $difficulty $os
+elif [ $parameter_counter -eq 7 ]; then
+  getSkill "$skill"
 else
   helpPanel
 fi 
