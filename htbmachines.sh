@@ -22,10 +22,11 @@ function ctrl_c() {
 function helpPanel() {
   echo -e "\n${yellowColour}[+]${endColour}${grayColour} Uso:${endColour}"
   echo -e "\t${purpleColour}u)${endColour} ${grayColour}Descargar o actualizar archivos necesarios ${endColour}"
+  echo -e "\t${purpleColour}h)${endColour} ${grayColour}Mostrar panel de ayuda ${endColour}"
   echo -e "\t${purpleColour}y)${endColour} ${grayColour}Obtener link de la resolución de la máquina en youtube ${endColour}"
   echo -e "\t${purpleColour}m)${endColour} ${grayColour}Buscar por nombre de máquina ${endColour}"
   echo -e "\t${purpleColour}i)${endColour} ${grayColour}Buscar por dirección IP${endColour}"
-  echo -e "\t${purpleColour}h)${endColour} ${grayColour}Mostrar panel de ayuda ${endColour}\n"
+  echo -e "\t${purpleColour}d)${endColour} ${grayColour}Buscar por la dificultad de la máquina${endColour}"
 }
 
 function searchMachine() {
@@ -94,18 +95,31 @@ function getYoutubeLink() {
   fi
 }
 
+function getMachinesDifficulty() {
+  difficulty=$1
+  machinesDifficulty="$(grep "dificultad: \"$difficulty\"" -B 5 bundle.js | grep name | awk 'NF{print $NF}' | tr -d '",' | column)"
+
+  if [ "$machinesDifficulty" ]; then
+  echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Representando las máquinas que poseen un nivel de dificultad${endColour} ${purpleColour}$difficulty ${endColour}${grayColour}:${endColour}\n"
+  echo -e "\n$machinesDifficulty"
+  else
+    echo -e "\n${redColour}[!] No existen máquinas con la dificultad proporcionada ${endColour}\n"
+  fi
+}
+
 #Indicadores
 declare -i parameter_counter=0
 
 # Ctrl_c
 trap ctrl_c INT
 
-while getopts "uy:m:i:h" arg; do
+while getopts "uy:m:i:hd:" arg; do
   case $arg in
     m) machineName="$OPTARG"; let parameter_counter+=1;;
     u) let parameter_counter+=2;;
     i) ipAddress="$OPTARG"; let parameter_counter+=3;;
     y) machineName="$OPTARG"; let parameter_counter+=4;;
+    d) difficulty="$OPTARG"; let parameter_counter+=5;;
     h) ;;
   esac
 done
@@ -118,6 +132,8 @@ elif [ $parameter_counter -eq 3 ]; then
   searchIp $ipAddress
 elif [ $parameter_counter -eq 4 ]; then
   getYoutubeLink $machineName
+elif [ $parameter_counter -eq 5 ]; then
+  getMachinesDifficulty $difficulty
 else
   helpPanel
 fi
