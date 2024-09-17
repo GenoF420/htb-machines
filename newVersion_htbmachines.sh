@@ -12,14 +12,14 @@ grayColour="\e[0;37m\033[1m"
 
 # Variables Globales
 main_url="https://htbmachines.github.io/bundle.js"
-json_file="bundle.json"
 
-# Funciones
+# Función para manejar Ctrl+C
 function ctrl_c() {
   echo -e "\n\n${redColour}[!] Saliendo...${endColour}\n"
   tput cnorm && exit 1
 }
 
+# Función para mostrar el panel de ayuda
 function helpPanel() {
   echo -e "\n${yellowColour}[+]${endColour}${grayColour} Uso:${endColour}"
   echo -e "\t${purpleColour}u)${endColour} ${grayColour}Descargar o actualizar archivos necesarios ${endColour}"
@@ -32,151 +32,183 @@ function helpPanel() {
   echo -e "\t${purpleColour}d)${endColour} ${grayColour}Buscar por la dificultad de la máquina${endColour}"
 }
 
-function updateFiles() {
-  tput civis
-  echo -e "\n${yellowColour}[+]${endColour}${grayColour} Descargando archivos necesarios...${endColour}"
-  curl -s $main_url -o bundle.js
-  js-beautify bundle.js | sponge bundle.js
-  # Extraer el array 'machines' y convertirlo a JSON
-  sed -n '/var machines = \[/,/^\];$/p' bundle.js | sed '1d;$d' > bundle_temp.json
-  echo "[" > $json_file
-  cat bundle_temp.json >> $json_file
-  echo "]" >> $json_file
-  rm bundle_temp.json
-  echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Todos los archivos han sido descargados correctamente.${endColour}"
-  tput cnorm
-}
-
+# Función para buscar una máquina por nombre
 function searchMachine() {
   local machineName="$1"
-  local machineData
 
-  machineData=$(jq ".[] | select(.name == \"$machineName\")" $json_file)
-  if [[ -n "$machineData" ]]; then
+  local machineInfo
+  machineInfo=$(awk "/name: \"$machineName\"/,/resuelta:/" bundle.js | grep -vE "id|resuelta|sku" | tr -d '",' | sed 's/^ *//')
+
+  if [ -n "$machineInfo" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Propiedades de la máquina${endColour}${blueColour} $machineName${endColour}${grayColour}:${endColour}\n"
-    echo "$machineData" | jq
+    echo "$machineInfo"
   else
     echo -e "\n${redColour}[!] La máquina proporcionada no existe.${endColour}"
   fi
 }
 
+# Función para actualizar los archivos necesarios
+function updateFiles() {
+  tput civis
+  if [ ! -f bundle.js ]; then
+    echo -e "\n${yellowColour}[+]${endColour}${grayColour} Descargando archivos necesarios...${endColour}"
+    curl -s $main_url -o bundle.js
+    js-beautify bundle.js | sponge bundle.js
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Todos los archivos han sido descargados correctamente.${endColour}"
+  else
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Comprobando si hay actualizaciones disponibles...${endColour}"
+    curl -s $main_url -o bundle_temp.js
+    js-beautify bundle_temp.js | sponge bundle_temp.js
+
+    local md5_temp_value md5_original_value
+    md5_temp_value=$(md5sum bundle_temp.js | awk '{print $1}')
+    md5_original_value=$(md5sum bundle.js | awk '{print $1}')
+
+    if [ "$md5_temp_value" == "$md5_original_value" ]; then
+      echo -e "\n${yellowColour}[+]${endColour} ${grayColour}No se han detectado actualizaciones, todo al día :D!${endColour}"
+      rm bundle_temp.js
+    else
+      echo -e "\n${yellowColour}[+]${endColour}${grayColour} Hay actualizaciones disponibles, actualizando...${endColour}"
+      mv bundle_temp.js bundle.js
+      echo -e "\n${yellowColour}[+]${endColour}${grayColour} Los archivos se han actualizado correctamente.${endColour}"
+    fi
+  fi
+  tput cnorm
+}
+
+# Función para buscar una máquina por IP
 function searchIp() {
   local ipAddress="$1"
   local machineName
 
-  machineName=$(jq -r ".[] | select(.ip == \"$ipAddress\") | .name" $json_file)
-  if [[ -n "$machineName" ]]; then
+  machineName=$(grep "ip: \"$ipAddress\"" bundle.js -B 5 | grep "name:" | awk -F'"' '{print $2}')
+
+  if [ -n "$machineName" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}La máquina correspondiente a la IP${endColour} ${blueColour}$ipAddress${endColour} ${grayColour}es${endColour} ${purpleColour}$machineName${endColour}"
   else
     echo -e "\n${redColour}[!] La IP proporcionada no existe.${endColour}"
   fi
 }
 
+# Función para obtener el enlace de YouTube de una máquina
 function getYoutubeLink() {
   local machineName="$1"
   local youtubeLink
 
-  youtubeLink=$(jq -r ".[] | select(.name == \"$machineName\") | .youtube" $json_file)
-  if [[ -n "$youtubeLink" && "$youtubeLink" != "null" ]]; then
+  youtubeLink=$(awk "/name: \"$machineName\"/,/resuelta:/" bundle.js | grep "youtube:" | awk -F'"' '{print $2}')
+
+  if [ -n "$youtubeLink" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}El tutorial para la máquina${endColour}${purpleColour} $machineName ${endColour}${grayColour}está en el siguiente enlace:${endColour} ${blueColour}$youtubeLink${endColour}"
   else
-    echo -e "\n${redColour}[!] No se encontró enlace de YouTube para la máquina proporcionada.${endColour}"
+    echo -e "\n${redColour}[!] La máquina proporcionada no existe o no tiene enlace de YouTube.${endColour}"
   fi
 }
 
-function getMachinesByDifficulty() {
+# Función para obtener máquinas por dificultad
+function getMachinesDifficulty() {
   local difficulty="$1"
   local machines
 
-  machines=$(jq -r ".[] | select(.dificultad == \"$difficulty\") | .name" $json_file)
-  if [[ -n "$machines" ]]; then
+  machines=$(grep "dificultad: \"$difficulty\"" bundle.js -B 5 | grep "name:" | awk -F'"' '{print $2}' | column)
+
+  if [ -n "$machines" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas con dificultad${endColour} ${purpleColour}$difficulty${endColour}${grayColour}:${endColour}\n"
-    echo "$machines" | column
+    echo "$machines"
   else
-    echo -e "\n${redColour}[!] No se encontraron máquinas con la dificultad proporcionada.${endColour}"
+    echo -e "\n${redColour}[!] No existen máquinas con la dificultad proporcionada.${endColour}"
   fi
 }
 
-function getMachinesByOS() {
+# Función para obtener máquinas por sistema operativo
+function getOSMachines() {
   local os="$1"
   local machines
 
-  machines=$(jq -r ".[] | select(.so == \"$os\") | .name" $json_file)
-  if [[ -n "$machines" ]]; then
+  machines=$(grep "so: \"$os\"" bundle.js -B 5 | grep "name:" | awk -F'"' '{print $2}' | column)
+
+  if [ -n "$machines" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas con sistema operativo${endColour} ${purpleColour}$os${endColour}${grayColour}:${endColour}\n"
-    echo "$machines" | column
+    echo "$machines"
   else
-    echo -e "\n${redColour}[!] No se encontraron máquinas con el sistema operativo proporcionado.${endColour}"
+    echo -e "\n${redColour}[!] No existen máquinas con el sistema operativo proporcionado.${endColour}"
   fi
 }
 
-function getMachinesBySkill() {
-  local skill="$1"
-  local machines
-
-  machines=$(jq -r ".[] | select(.skills[]? | contains(\"$skill\")) | .name" $json_file)
-  if [[ -n "$machines" ]]; then
-    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas que requieren la habilidad${endColour} ${purpleColour}$skill${endColour}${grayColour}:${endColour}\n"
-    echo "$machines" | column
-  else
-    echo -e "\n${redColour}[!] No se encontraron máquinas que requieran la habilidad indicada.${endColour}"
-  fi
-}
-
-function getMachinesByOSAndDifficulty() {
+# Función para obtener máquinas por sistema operativo y dificultad
+function getOSDifficultyMachines() {
   local os="$1"
   local difficulty="$2"
   local machines
 
-  machines=$(jq -r ".[] | select(.so == \"$os\" and .dificultad == \"$difficulty\") | .name" $json_file)
-  if [[ -n "$machines" ]]; then
+  machines=$(grep "so: \"$os\"" bundle.js -B 5 | grep "dificultad: \"$difficulty\"" -B 5 | grep "name:" | awk -F'"' '{print $2}' | column)
+
+  if [ -n "$machines" ]; then
     echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas con sistema operativo${endColour} ${purpleColour}$os${endColour} ${grayColour}y dificultad${endColour} ${purpleColour}$difficulty${endColour}${grayColour}:${endColour}\n"
-    echo "$machines" | column
+    echo "$machines"
   else
-    echo -e "\n${redColour}[!] No se encontraron máquinas con los criterios proporcionados.${endColour}"
+    echo -e "\n${redColour}[!] No existen máquinas con los criterios proporcionados.${endColour}"
   fi
 }
 
-# Manejo de Señales y Parámetros
+# Función para obtener máquinas por skill
+function getSkill() {
+  local skill="$1"
+  local machines
+
+  machines=$(grep -i "skills: " bundle.js -B 6 | grep -i "$skill" -B 6 | grep "name:" | awk -F'"' '{print $2}' | column)
+
+  if [ -n "$machines" ]; then
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas que requieren la habilidad${endColour} ${purpleColour}$skill${endColour}${grayColour}:${endColour}\n"
+    echo "$machines"
+  else
+    echo -e "\n${redColour}[!] No se han encontrado máquinas que requieran la skill indicada.${endColour}"
+  fi
+}
+
+# Manejo de señales
 trap ctrl_c INT
 
+# Inicialización de variables
 declare -i parameter_counter=0
+declare -i flag_difficulty=0
+declare -i flag_os=0
 
+# Procesamiento de opciones
 while getopts "uy:m:i:hd:o:s:" arg; do
   case $arg in
     u) updateFiles; exit 0;;
     h) helpPanel; exit 0;;
     m) machineName="$OPTARG"; let parameter_counter+=1;;
     i) ipAddress="$OPTARG"; let parameter_counter+=2;;
-    y) machineName="$OPTARG"; let parameter_counter+=3;;
-    d) difficulty="$OPTARG"; let parameter_counter+=4;;
-    o) os="$OPTARG"; let parameter_counter+=5;;
+    y) youtubeMachine="$OPTARG"; let parameter_counter+=3;;
+    d) difficulty="$OPTARG"; flag_difficulty=1; let parameter_counter+=4;;
+    o) os="$OPTARG"; flag_os=1; let parameter_counter+=5;;
     s) skill="$OPTARG"; let parameter_counter+=6;;
     *) helpPanel; exit 1;;
   esac
 done
 
-# Verificar si el archivo JSON existe
-if [[ ! -f "$json_file" ]]; then
-  echo -e "\n${redColour}[!] El archivo $json_file no existe. Por favor, ejecuta la opción -u para descargarlo.${endColour}"
+# Verificación de que bundle.js existe
+if [ ! -f bundle.js ]; then
+  echo -e "\n${redColour}[!] El archivo bundle.js no existe. Por favor, ejecuta la opción -u para descargarlo.${endColour}"
   exit 1
 fi
 
-# Lógica para Ejecutar Funciones Basadas en Parámetros
-if [[ $parameter_counter -eq 1 ]]; then
+# Ejecución de funciones según opciones proporcionadas
+if [ $parameter_counter -eq 1 ]; then
   searchMachine "$machineName"
-elif [[ $parameter_counter -eq 2 ]]; then
+elif [ $parameter_counter -eq 2 ]; then
   searchIp "$ipAddress"
-elif [[ $parameter_counter -eq 3 ]]; then
-  getYoutubeLink "$machineName"
-elif [[ $parameter_counter -eq 4 ]]; then
-  getMachinesByDifficulty "$difficulty"
-elif [[ $parameter_counter -eq 5 ]]; then
-  getMachinesByOS "$os"
-elif [[ $parameter_counter -eq 9 ]]; then
-  getMachinesByOSAndDifficulty "$os" "$difficulty"
-elif [[ $parameter_counter -eq 6 ]]; then
-  getMachinesBySkill "$skill"
+elif [ $parameter_counter -eq 3 ]; then
+  getYoutubeLink "$youtubeMachine"
+elif [ $flag_difficulty -eq 1 ] && [ $flag_os -eq 0 ]; then
+  getMachinesDifficulty "$difficulty"
+elif [ $flag_os -eq 1 ] && [ $flag_difficulty -eq 0 ]; then
+  getOSMachines "$os"
+elif [ $flag_difficulty -eq 1 ] && [ $flag_os -eq 1 ]; then
+  getOSDifficultyMachines "$os" "$difficulty"
+elif [ $parameter_counter -eq 6 ]; then
+  getSkill "$skill"
 else
   helpPanel
 fi
