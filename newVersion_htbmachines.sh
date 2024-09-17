@@ -36,8 +36,13 @@ function updateFiles() {
   tput civis
   echo -e "\n${yellowColour}[+]${endColour}${grayColour} Descargando archivos necesarios...${endColour}"
   curl -s $main_url -o bundle.js
-  # Extraer el objeto JavaScript y convertirlo a JSON
-  sed -n '/var machines = \[/,/\];/p' bundle.js | sed '1d;$d' > $json_file
+  js-beautify bundle.js | sponge bundle.js
+  # Extraer el array 'machines' y convertirlo a JSON
+  sed -n '/var machines = \[/,/^\];$/p' bundle.js | sed '1d;$d' > bundle_temp.json
+  echo "[" > $json_file
+  cat bundle_temp.json >> $json_file
+  echo "]" >> $json_file
+  rm bundle_temp.json
   echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Todos los archivos han sido descargados correctamente.${endColour}"
   tput cnorm
 }
