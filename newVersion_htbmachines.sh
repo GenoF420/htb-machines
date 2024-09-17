@@ -136,14 +136,14 @@ function getOSMachines() {
 
 # Función para obtener máquinas por sistema operativo y dificultad
 function getOSDifficultyMachines() {
-  local os="$1"
-  local difficulty="$2"
+  local difficulty="$1"
+  local os="$2"
   local machines
 
-  machines=$(grep "so: \"$os\"" bundle.js -B 5 | grep "dificultad: \"$difficulty\"" -B 5 | grep "name:" | awk -F'"' '{print $2}' | column)
+  machines=$(grep "dificultad: \"$difficulty\"" bundle.js -C7 | grep "so: \"$os\"" -B7 | grep "name:" | awk -F'"' '{print $2}' | column)
 
   if [ -n "$machines" ]; then
-    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas con sistema operativo${endColour} ${purpleColour}$os${endColour} ${grayColour}y dificultad${endColour} ${purpleColour}$difficulty${endColour}${grayColour}:${endColour}\n"
+    echo -e "\n${yellowColour}[+]${endColour} ${grayColour}Máquinas con dificultad${endColour} ${purpleColour}$difficulty${endColour} ${grayColour}y sistema operativo${endColour} ${purpleColour}$os${endColour}${grayColour}:${endColour}\n"
     echo "$machines"
   else
     echo -e "\n${redColour}[!] No existen máquinas con los criterios proporcionados.${endColour}"
@@ -206,7 +206,7 @@ elif [ $flag_difficulty -eq 1 ] && [ $flag_os -eq 0 ]; then
 elif [ $flag_os -eq 1 ] && [ $flag_difficulty -eq 0 ]; then
   getOSMachines "$os"
 elif [ $flag_difficulty -eq 1 ] && [ $flag_os -eq 1 ]; then
-  getOSDifficultyMachines "$os" "$difficulty"
+  getOSDifficultyMachines "$difficulty" "$os"
 elif [ $parameter_counter -eq 6 ]; then
   getSkill "$skill"
 else
